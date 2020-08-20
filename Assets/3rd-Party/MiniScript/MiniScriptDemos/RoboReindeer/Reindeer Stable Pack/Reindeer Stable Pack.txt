@@ -1,0 +1,35 @@
+                                                                                  
+
+Reindeer Stable Pack v.0
+
+by MAAT
+
+--- What it is ---
+
+Reindeer stable Pack containes a Reindeer model with a few accesories, and hes stable. The stable has severel props and Tile Textures that can be used easaly in any projects. 
+It also has Hand painted High Quality textures, that can be easely used anywhere you need them.
+
+specs:
+
+- 6 texture (PSD):
+- 1 2048 for the props
+- 4 1024 Tile textures
+- 1 Emissive for the Window
+- 1 with Alpha for the Hay (TGA)
+
+- 10 FBX Props
+- 1 FBX Reindeer 798 tri + accesories 296 tri
+- bonus Stable FBX used for the Beuty shot
+
+--- Installation ---
+
+Open package, take what you want.
+
+--- Use ---
+
+You can use the props as decoration or as vial elements in the construction of a scene. 
+Using the Stable Fbx in any 3D editing program you can easely reUse any parts to build your own interior, using the walls, Pilars, windows, and finaly decorating with the props, and maybe even adding your own elements to make it perfect.
+
+ The Tile textures can be used anywhere, they are tilebale in any direction.
+
+Enjoy the Packege, may it serve you well.

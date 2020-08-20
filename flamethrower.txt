@@ -1,0 +1,41 @@
+// How high the tip is, relative to the flamethrower center
+tipOffset = Vector3(0, 0.70, 0.10)
+// The particles for the flame
+fxObj = GetObject("FlamethrowerFX")
+isFiring = false
+fxObj.SetEnabled(isFiring)
+fxRot = Quaternion(-90, 0, 0)
+
+BeginFire = function()
+	globals.isFiring = true
+	fxObj.SetEnabled(true)
+	PlayAudio()
+	print("begin fire")
+end function
+EndFire = function()
+	globals.isFiring = false
+	print("end fire")
+	fxObj.SetEnabled(false)
+	StopAudio()
+end function
+
+OnUpdate = function()
+	if not globals.isFiring then
+		return
+	end if
+	
+	origin = TransformPoint(globals.tipOffset)
+	fxObj.SetPosition(origin)
+	fxObj.SetRotation(rotation * globals.fxRot)
+end function
+
+OnGrabTriggerDown = function()
+	print("trigger down")
+	SyncRun("BeginFire", "others", null, true)
+	BeginFire()
+end function
+OnGrabTriggerUp = function()
+	print("trigger up")
+	SyncRun("EndFire", "others", null, true)
+	EndFire()
+end function

@@ -1,0 +1,192 @@
+// I don't dance now, I make muscle moves...
+// Configurable Params
+MaxMoveF = 4000
+MaxHoldF = 1.334 * MaxMoveF
+MaxTorque = 500
+MaxHoldTorque = 1.334 * MaxTorque
+MaxMoveSpeed = 4.5 // m/s
+HillParamA = 0.25 // Coefficient of shortening heat in Hill's muscle model
+
+SetAngularDrag(0)
+dtSqr = fixedDeltaTime * fixedDeltaTime
+// Load the relevant information about the object and where our hand is
+mass = GetMass()
+weight = Vector3(0, mass * 9.81, 0)
+// Fyi, the inertia tensor includes the mass
+inertiaRaw = GetInertiaTensor()
+inertiaRot = GetInertiaTensorRotation()
+// The inertia tensor from Unity includes the mass
+inertia = inertiaRot * inertiaRaw
+SetBounciness(0.1)
+didAddScript = false
+zero = Vector3(0,0,0)
+yLine = Line(Vector3(0,0,0), Vector3(0,1,0), "yellow")
+gLine = Line(Vector3(0,0,0), Vector3(0,1,0), "green")
+cLine = Line(Vector3(0,0,0), Vector3(0,1,0), "cyan")
+mLine = Line(Vector3(0,0,0), Vector3(0,1,0), "magenta")
+handOffset = Vector3(0, 0.2, 0)
+anchorPos = zero
+
+OnFixedUpdate = function()
+	
+	if GetGrabbingUser() == null then
+		if globals.didAddScript then
+			RemoveScript("Configurable Joint")
+			globals.didAddScript = false
+		end if
+		return
+	end if
+	
+	if not globals.didAddScript then
+		AddScript("Configurable Joint")
+		anchor = GetGrabRelativePosRot()
+		//print("anchor pos " + anchor.position)
+		SetAnchorPoint(anchor.position)
+		globals.anchorPos = anchor.position
+		globals.didAddScript = true
+	end if
+	
+	// Info about the ideal place for us to be
+	targPosRot = GetInstantGrabbedPosRotVel()
+	grabPosRot = GetGrabRelativePosRot()
+	handPosRot = GetRealHandPosRot()
+	
+	targAnchorOffset = targPosRot.rotation * globals.anchorPos
+	targAnchorPos = targPosRot.position + targAnchorOffset
+	SetTargetPosRot(zero, targPosRot.rotation)
+	ourAnchorPos = position + rotation * globals.anchorPos
+	
+	// Update where the other end of the spring is
+	SetConnectedAnchor(targAnchorPos)
+	//SetPositionDriveSpring(10000, 10000, 10000)
+	SetPositionDriveDamper(1, 1, 1)
+	//SetRotationSlerpDrive(2000)
+	
+	/// POSITION
+	delPos = targAnchorPos - ourAnchorPos
+	gLine.Update(ourAnchorPos, delPos)
+	posF = mass * (delPos - velocity * fixedDeltaTime) / dtSqr
+	posFMag = posF.Magnitude()
+	vMag = velocity.Magnitude
+	
+	// Clamp to the maximum that is physiologically allowed
+	// If we're applying a force against the velocity, then
+	// we have slightly more force to give
+	cLine.Update(position, posF.Normalized() / 5)
+	yLine.Update(position, velocity)
+	againstV = vMag < 0.1 or dot(posF, velocity) < -0.3
+	maxMag = MaxMoveF
+	if againstV then
+		maxMag = MaxHoldF
+		//SetColor("red")
+	else
+		//SetColor("green")
+		// Normalize the speed by the max speed
+		v = abs(vMag) / MaxMoveSpeed
+		if v >= 1 then
+			// we're moving at the max speed
+			// so we can't apply any force
+			maxMag = 0
+		else
+			// Normalized Hill model, so a=b
+			f = HillParamA * (1 + HillParamA) / (v + HillParamA) - HillParamA
+			// Get the non-normalized force
+			maxMag = f * MaxMoveF
+		end if
+	end if
+	
+	delPosMag = delPos.Magnitude()
+	posFMag = clamp(posFMag, -maxMag, maxMag)
+	// f = -kx - dv
+	posSpringK = posFMag / delPosMag
+	SetPositionDriveSpring(posSpringK, posSpringK, posSpringK)
+	
+	/// ROTATION
+	targAngVel = targPosRot.angularVelocity
+	// Turn the angular velocities into quaternions
+	angVelQ = Quaternion(angularVelocity.Normalized, angularVelocity.Magnitude)
+	tAngVelQ = Quaternion(targAngVel.Normalized, targAngVel.Magnitude)
+	
+	// How much the rotation will change by next frame
+	angleStep = Quaternion(angularVelocity.Normalized, fixedDeltaTime * angularVelocity.Magnitude)
+	tAngleStep = Quaternion(targAngVel.Normalized, fixedDeltaTime * targAngVel.Magnitude)
+	// What our rotation will be next frame
+	nextRot = angleStep * rotation
+	targNextRot = tAngleStep * targPosRot.rotation
+	
+	// Get the rotation that we're planning to correct
+	// delRot is the angle from where the object is, to where
+	// we want it to be
+	delRot = 0
+	if dot(targNextRot, nextRot) >= 0 then
+		delRot = targNextRot * nextRot.inv()
+	else
+		flippedNextRot = -nextRot
+		delRot = targNextRot * flippedNextRot.inv()
+	end if
+	
+	angleAxis = delRot.ToAngleAxis()
+	delRad = radians(angleAxis.angle)
+	//print("del degrees " + angleAxis.angle)
+	
+	// Get the torque needed to correct the rotation
+	accel = delRad / dtSqr
+	angAccel = angleAxis.axis * accel
+	posTorque = rotation * ((rotation.inv() * angAccel).ComponentMul(inertia))
+	
+	// Get the torque needed to correct the angular velocity
+	delAngVel = targAngVel - angularVelocity
+	velAngAccel = delAngVel / fixedDeltaTime
+	velTorque = rotation * ((rotation.inv() * velAngAccel).ComponentMul(inertia))
+	
+	// Use the delta angle to find the weight for correcting angle/angularVelocity
+	// 0 means just correct angle, >= 1 means correct angular velocity
+	//delAngle = rotation.inv() * (angleAxis.angle * angleAxis.axis)
+	//wAngle = (abs(delAngle) - SmallAngleVec).ComponentDiv(LSAngleVec)
+	wTorque = posTorque
+	
+	// We can apply a larger torque if we're appying a force against
+	// the velocity
+	rotAgainstVel = angularVelocity.Magnitude < 0.1 // Rad/s
+	rotAgainstVel = rotAgainstVel or dot(angularVelocity, wTorque) < 0.01
+	clampT = MaxTorque
+	if rotAgainstVel then
+		clampT = MaxHoldTorque
+		//mLine.Update(Vector3(1, 2, 0), Vector3(0, -1, 0))
+		//SetColor("red")
+	else
+		//SetColor("green")
+		//mLine.Update(Vector3(1, 2, 0), Vector3(0, 1, 0))
+	end if
+	
+	// Clamp the torque
+	rotTMag = wTorque.Magnitude()
+	rotTMag = clamp(abs(rotTMag), 0, clampT)
+	//print("rotF " + rotFMag)
+	// Apply the torque via the spring parameter
+	rotSpringK = 0
+	if delRad > 0.01 then
+		rotSpringK = rotTMag / delRad
+		rotSpringK = clamp(rotSpringK, 0, 20000)
+	end if
+	SetRotationSlerpDrive(rotSpringK)
+	
+	availT = clampT - rotTMag
+	damper = 0
+	if availT < 0.1 then
+		SetRotationSlerpDamper(0)
+	else
+		delAngVelMag = (angularVelocity - targAngVel).Magnitude()
+		if delAngVelMag > 0.01 then
+			damper = availT / delAngVelMag
+			//print("delAngle " + degrees(delRad) + " delV " + delAngVelMag + " availT " + availT)
+			damper = clamp(damper, 0, 50)
+		end if
+		springAngVel = rotation.inv() * targAngVel
+		springAngVel = -springAngVel
+		SetTargetAngularVelocity(springAngVel)
+		SetRotationSlerpDamper(damper)
+		//print("rot damper: " + damper)
+	end if
+	//print("rot springK " + rotSpringK + " d " + damper)
+end function

@@ -1,0 +1,58 @@
+// This file is code that's inserted into the beginning of our REPL demo
+// environment.  It prints the initial intro text, and also adds some
+// help functions.  You can edit this code to change these setup steps
+// if you like, and your changes will take effect the next time you run
+// the demo.
+
+// Here's the function that prints the intro text.
+printIntro = function()
+	print "Welcome to Miniscript!"
+	print
+	print "This is a simple Read-Eval-Print Loop.  Type some"
+	print "Miniscript code below, one line at a time.  Press"
+	print "Return after each line.  The result will be"
+	print "displayed here.  Enter <color=""cyan"">help</color> for help!"
+end function
+
+// And here's the help function.  Because it's MiniScript, users can invoke
+// this just by typing "help" with no parentheses.
+help = function()
+	print "Read over the <color=""grey"">MiniScript-QuickRef</color> PDF if you haven't"
+	print "already.  It contains everything you need to know"
+	print "about MiniScript syntax."
+	print
+	print "This demo environment includes a global map called"
+	print "<color=""cyan"">ship</color>, which is connected to the sprite you see at"
+	print "right.  Changing the values in this map causes the"
+	print "sprite to move around."
+	print
+	print "If you need some examples to get you started, type <color=""cyan"">examples</color>."
+end function
+
+// And one more help function, this one providing some brief example code.
+examples = function()
+	print "To greet the world, enter:"
+	print "    <color=""cyan"">print ""Hello world!""</color>"
+	print
+	print "To see what's in the <color=""cyan"">ship</color> map, simply enter:"
+	print "    <color=""cyan"">ship</color>"
+	print
+	print "To move the ship slightly to the right:"
+	print "    <color=""cyan"">ship.x = 1</color>"
+	print
+	print "To reset the ship if you've lost it:"
+	print "    <color=""cyan"">ship.reset</color>"
+	print
+	print "To print a countdown, use a for loop.  (Indentation doesn't matter.)"
+	print "    <color=""cyan"">for i in range(10,1)</color>"
+	print "    <color=""cyan"">  print i</color>"
+	print "    <color=""cyan"">  wait</color>"
+	print "    <color=""cyan"">end for</color>"
+	print
+	print "For any code more than a few lines, you should"
+	print "probably switch over to the Program tab (at the"
+	print "top) and use the My Code area."
+end function
+
+// Finally, let's print the intro for the user.
+printIntro

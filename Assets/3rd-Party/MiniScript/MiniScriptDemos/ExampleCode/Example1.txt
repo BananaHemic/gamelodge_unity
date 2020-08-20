@@ -1,0 +1,12 @@
+// Example 1.
+
+print "Hello world!"
+ship.reset
+
+for a in range(0, 360, 10)
+	ship.rot = a
+	if a % 90 == 0 then print a + "..."
+	wait 1/36
+end for
+
+print "Spin complete!"

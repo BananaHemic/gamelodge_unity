@@ -1,0 +1,79 @@
+
+// How high the tip is, relative to the wand center
+tipOffset = Vector3(0, 0, 1.15)
+// The particles for the impact
+impactObj = GetObject("ImpactFire")
+// The particles for the end of the staff
+muzzleObj = GetObject("MuzzleFlash")
+impactObj.SetEnabled(false)
+muzzleObj.SetEnabled(false)
+SetLineWidth(0)
+
+timeOfLastFire = 0
+warmupTime = 0.5
+cooldownTime = 0.5
+isFiring = false
+lastWidth = 0
+
+BeginFire = function()
+	globals.isFiring = true
+	muzzleObj.SetEnabled(true)
+	print("begin fire")
+end function
+EndFire = function()
+	globals.isFiring = false
+	muzzleObj.SetEnabled(false)
+end function
+
+OnUpdate = function()
+	if not globals.isFiring and globals.lastWidth == 0 then
+		return
+	end if
+	
+	if globals.isFiring then
+		width = globals.lastWidth + deltaTime / warmupTime
+	else
+		width = globals.lastWidth - deltaTime / cooldownTime
+	end if
+	width = clamp(width, 0, 1)
+	SetLineWidth(width)
+	globals.lastWidth = width
+	if width == 0 then
+		impactObj.SetEnabled(false)
+		return
+	end if
+	// Physics cast to get where the ray should end
+	origin = TransformPoint(tipOffset)
+	hit = Raycast(origin, forward)
+	hitPos = origin + forward * 20
+	if not hit then
+		//print("Nothing hit")
+		impactObj.SetEnabled(false)
+	else 
+		//print("hit: " + hit)
+		hitPos = hit.position
+		impactObj.SetPosition(hitPos)
+		impactObj.SetEnabled(true)
+		muzzleObj.SetPosition(origin)
+		
+		if hit.hasIndex("object") then
+			newScale = hit.object.scale + deltaTime * Vector3(0.5,0.5,0.5)
+			hit.object.SetScale(newScale)
+		end if
+	end if
+	pos = []
+	pos.push(Vector3(origin))
+	pos.push(Vector3(hitPos))
+	SetLinePositions(pos)
+end function
+
+OnGrabTriggerDown = function()
+	print("trigger down")
+	SyncRun("BeginFire", "others", null, true)
+	BeginFire()
+end function
+OnGrabTriggerUp = function()
+	print("trigger up")
+	SyncRun("EndFire", "others", null, true)
+	EndFire()
+end function

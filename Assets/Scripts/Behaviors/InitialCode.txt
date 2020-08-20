@@ -1,0 +1,3 @@
+// Custom behavior
+// Here you can write your own
+// miniscript code

@@ -1,0 +1,62 @@
+// I don't dance now, I make muscle moves...
+SetAngularDrag(0)
+dtSqr = fixedDeltaTime * fixedDeltaTime
+// Load the relevant information about the object and where our hand is
+mass = GetMass()
+weight = Vector3(0, mass * 9.81, 0)
+// Fyi, the inertia tensor includes the mass
+inertiaRaw = GetInertiaTensor()
+inertiaRot = GetInertiaTensorRotation()
+// The inertia tensor from Unity includes the mass
+inertia = inertiaRot * inertiaRaw
+SetBounciness(0.1)
+didAddScript = false
+zero = Vector3(0,0,0)
+yLine = Line(Vector3(0,0,0), Vector3(0,1,0), "yellow")
+gLine = Line(Vector3(0,0,0), Vector3(0,1,0), "green")
+cLine = Line(Vector3(0,0,0), Vector3(0,1,0), "cyan")
+handOffset = Vector3(0, 0.2, 0)
+anchorPos = zero
+
+OnFixedUpdate = function()
+	
+	if GetGrabbingUser() == null then
+		if globals.didAddScript then
+			RemoveScript("Configurable Joint")
+			globals.didAddScript = false
+		end if
+		return
+	end if
+	
+	if not globals.didAddScript then
+		AddScript("Configurable Joint")
+		anchor = GetGrabRelativePosRot()
+		//print("anchor pos " + anchor.position)
+		SetAnchorPoint(anchor.position)
+		globals.anchorPos = anchor.position
+		globals.didAddScript = true
+	end if
+	
+	// Info about the ideal place for us to be
+	targPosRot = GetInstantGrabbedPosRotVel()
+	grabPosRot = GetGrabRelativePosRot()
+	handPosRot = GetRealHandPosRot()
+	
+	targAnchorOffset = targPosRot.rotation * globals.anchorPos
+	targAnchorPos = targPosRot.position + targAnchorOffset
+	SetTargetPosRot(zero, targPosRot.rotation)
+	ourAnchorPos = position + rotation * globals.anchorPos
+	
+	SetConnectedAnchor(targAnchorPos)
+	SetPositionDriveSpring(10000, 10000, 10000)
+	SetPositionDriveDamper(1, 1, 1)
+	SetRotationSlerpDrive(2000)
+	
+	targGrabPosRot = GetRealHandPosRot()
+	dir = targPosRot.rotation * Vector3(0,0,-1)
+	yLine.Update(targGrabPosRot.position, dir)
+	
+	anchorPosW = TransformPoint(globals.anchorPos)
+	gLine.Update(anchorPosW, Vector3(0,0.1,0))
+	cLine.Update(handPosRot.position, Vector3(0,0.1,0))
+end function

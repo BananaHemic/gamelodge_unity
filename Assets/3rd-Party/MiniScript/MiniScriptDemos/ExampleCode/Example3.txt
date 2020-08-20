@@ -1,0 +1,24 @@
+// Example 3.
+
+ship.goForward = function(dist)
+	radians = self.rot * pi/180
+	self.x = self.x + cos(radians) * dist
+	self.y = self.y + sin(radians) * dist
+end function
+
+ship.doCurve = function(turnRate, speed, duration)
+	lastTime = time
+	endTime = lastTime + duration
+	while time < endTime
+		dt = time - lastTime
+		lastTime = time
+		self.rot = self.rot + turnRate * dt
+		self.goForward speed * dt
+		yield // (waits till the next frame)
+	end while
+end function
+
+ship.doCurve 90, 3, 4
+ship.doCurve -90, 3, 4
+
+	

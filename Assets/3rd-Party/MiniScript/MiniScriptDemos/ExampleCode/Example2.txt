@@ -1,0 +1,21 @@
+// Example 2.
+
+spin = function(degrees, duration=1)
+	endTime = time + duration
+	endAngle = ship.rot + degrees
+	lastTime = time
+	degPerSec = degrees / duration
+	while time < endTime
+		dt = time - lastTime
+		lastTime = time
+		ship.rot = ship.rot + degPerSec * dt
+		wait 0.01
+	end while
+	ship.rot = endAngle
+end function
+
+spin 360
+spin -360
+spin 90,2
+spin -90,0.5
+

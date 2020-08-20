@@ -1,0 +1,47 @@
+h = 1.9
+SetPosition(Vector3(-4.2, h, -4.5))
+AddScript("Virtual Camera")
+SetVisible(false)
+
+chars = GetAllPossessedObjects()
+for c in chars
+	c.SetCharacterBlendShape(17, 100)
+	c.SetCharacterBlendShape(19, 100)
+end for
+wait(1.05) // pause before oh		
+
+pos = []
+pos.push(Vector3(-4.2, h, -4))
+pos.push(Vector3(-4.2, h, -3.4))
+pos.push(Vector3(-4.2, h, -3))
+durs = []
+durs.push(0.845 + 0.1)//oh
+durs.push(1.28 - 0.1)//my
+durs.push(1.17)//God
+
+speed = 0.3
+
+me = GetLocalPossessedObject()
+if me != null then
+	me.SetEnabled(false)
+end if
+
+t = time()
+for p in pos
+	t = t + durs.pull()
+	while time() < t
+		lerpP = lerp(position, p, speed)
+		SetPosition(lerpP)
+		wait(0)
+	end while
+	
+	if len(durs) == 1 then
+		chars = GetAllPossessedObjects()
+		for c in chars
+			c.SetCharacterBlendShape(17, 0)
+			c.SetCharacterBlendShape(19, 0)
+			c.SetCharacterBlendShape(16, 60)
+			c.SetCharacterBlendShape(18, 60)
+		end for
+	end if
+end for

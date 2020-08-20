@@ -1,0 +1,292 @@
+// I don't dance now, I make muscle moves...
+
+//// Configurable params
+// The distance below which we only correct velocity
+SmallDist = -0.1
+// The distance above which we only correct position
+LargeDist = 0.1
+SmallDistVec = Vector3(SmallDist, SmallDist, SmallDist)
+LargeDistVec = Vector3(LargeDist, LargeDist, LargeDist)
+LSDistVec = LargeDistVec - SmallDistVec
+// The angle at and below which we only correct the velocity
+SmallAngle = -0.1
+// The angle at and above which we only correct for the position
+LargeAngle = 5
+SmallAngleVec = Vector3(SmallAngle, SmallAngle, SmallAngle)
+LargeAngleVec = Vector3(LargeAngle, LargeAngle, LargeAngle)
+LSAngleVec = LargeAngleVec - SmallAngleVec
+MaxTorque = 100
+MaxHoldTorque = 1.334 * MaxTorque
+MaxPushTorque = MaxTorque
+MaxMoveF = 400
+MaxHoldF = 1.334 * MaxMoveF
+MaxPushF = MaxHoldF
+MaxMoveSpeed = 4.5 // m/s
+HillParamA = 0.25 // Coefficient of shortening heat in Hill's muscle model
+SetAngularDrag(0)
+SetMaxAngularVelocity(9999)
+rLine = Line(Vector3(0,0,0), Vector3(0,1,0),"red")
+bLine = Line(Vector3(0,0,0), Vector3(0,1,0),"blue")
+gLine = Line(Vector3(0,0,0), Vector3(0,1,0),"green")
+yLine = Line(Vector3(0,0,0), Vector3(0,1,0),"yellow")
+cLine = Line(Vector3(0,0,0), Vector3(0,1,0),"cyan")
+grLine = Line(Vector3(0,0,0), Vector3(0,1,0),"gray")
+mLine = Line(Vector3(0,0,0), Vector3(0,1,0),"magenta")
+dtSqr = fixedDeltaTime * fixedDeltaTime
+// Load the relevant information about the object and where our hand is
+mass = GetMass()
+weight = Vector3(0, mass * 9.81, 0)
+// Fyi, the inertia tensor includes the mass
+inertiaRaw = GetInertiaTensor()
+inertiaRot = GetInertiaTensorRotation()
+// The inertia tensor from Unity includes the mass
+inertia = inertiaRot * inertiaRaw
+SetBounciness(0.1)
+
+OnFixedUpdate = function()
+	//return
+	if GetGrabbingUser() == null then
+		return
+	end if
+	
+	// Info about the ideal place for us to be
+	targetPosRot = GetInstantGrabbedPosRotVel()
+	targetAngVel = targetPosRot.angularVelocity
+	targetVel = targetPosRot.velocity
+	grabPosRot = GetGrabRelativePosRot()
+	
+	centerOfMass = GetCenterOfMass("world")
+	grabPosWorld = TransformPoint(grabPosRot.position)
+	
+	grabPosFromCOM = grabPosWorld - centerOfMass
+	grabPosFromCOMNormalized = grabPosFromCOM.Normalized()
+	// TODO for some reason, targetGrabPosRot has a negative rotation
+	targGrabPosRot = GetRealHandPosRot()
+	targGrabPosW = targGrabPosRot.position
+	isColliding = IsColliding()
+	
+	//rLine.Update(targGrabPosW, Vector3(0,1,0))
+	// Don't correct the velocity added to keep
+	// the object in the user's hand
+	velocity = velocity - globals.lastGrabV
+	
+	// We find out what force would correct our positional to match
+	// the target immediately, and the force to match the target
+	// velocity. Then we use the distance from the target to determine
+	// if we prioritize matching the position, or if we prioritize
+	// matching the velocity. Then, we use the current velocity, as
+	// a parameter in Hill's muscle model, to determine what the maximum
+	// force is that we're able to apply. We then clamp down the force
+	// applied if it's larger than the maximum amount that we're able to
+	// apply. We then repeat this same basic process for the torque,
+	// accounting for how much torque the positional change is able to
+	// apply
+	
+	// Get the ideal force to move the object to the target position
+	// We essentially use the basic physics equation
+	// x = x_0 + v_0 * t + 1/2 * at^2
+	// Then use F = ma to solve for F
+	// TODO somehow this works better without the 0.5 term...
+	//delPos = targetPosRot.position - position
+	delPos = targGrabPosW - grabPosWorld
+	posF = mass * (delPos - velocity * fixedDeltaTime) / dtSqr
+	
+	// Get the force needed to correct the velocity
+	velF = mass * (targetVel - velocity) / fixedDeltaTime
+	
+	// Get the weight for how much to correct the position, and how
+	// much to correct the velocity
+	wPos = (abs(delPos) - SmallDistVec).ComponentDiv(LSDistVec)
+	if isColliding or delPos.Magnitude > 0.2 then
+		//print("Large offset, using pos")
+		wPos = Vector3(1,1,1)
+	end if
+	finF = lerp(velF, posF, wPos)
+	
+	// Clamp to the maximum that is physiologically allowed
+	// If we're applying a force against the velocity, then
+	// we have slightly more force to give
+	fMag = finF.Magnitude
+	vMag = velocity.Magnitude
+	againstV = vMag < 0.1 or dot(finF,velocity) < -0.1
+	maxMag = MaxMoveF
+	if isColliding then
+		maxMag = MaxPushF
+	else if againstV then
+		maxMag = MaxHoldF
+		SetColor("red")
+	else
+		SetColor("green")
+		// TODO we may need to apply this per-dimension
+		
+		// Normalize the speed by the max speed
+		v = abs(vMag) / MaxMoveSpeed
+		if v >= 1 then
+			// we're moving at the max speed
+			// so we can't apply any force
+			maxMag = 0
+			//print("max speed")
+		else
+			// Normalized Hill model, so a=b
+			f = HillParamA * (1 + HillParamA) / (v + HillParamA) - HillParamA
+			// Get the non-normalized force
+			maxMag = f * MaxMoveF
+			//print("Max f " + f)
+		end if
+	end if
+	// Apply the max force
+	if fMag > maxMag then
+		// avoid divide by 0
+		if fMag < 0.001 then
+			finF = Vector3(0,0,0)
+		else
+			fScale = maxMag / fMag
+			finF = finF * fScale
+		end if
+	end if
+	
+	// Account for gravity
+	// We do this after the force has been clamped
+	// so that it doesn't fall down when moving it
+	// horizontally. This does make it stronger vertically
+	// however (TODO)
+	if dot(finF, weight) > -0.1 then
+		finF = finF + weight
+	end if
+	
+	// Add force to correct for the position delta
+	AddForce(finF, grabPosWorld)
+	
+	// This force will apply a torque, so we need to account for that in
+	// later torque calculations
+	posT = cross(grabPosFromCOM, finF)
+	
+	// Turn the angular velocities into quaternions
+	angVelQ = Quaternion(angularVelocity.Normalized, angularVelocity.Magnitude)
+	tAngVelQ = Quaternion(targetAngVel.Normalized, targetAngVel.Magnitude)
+	
+	// How much the rotation will change by next frame
+	angleStep = Quaternion(angularVelocity.Normalized, fixedDeltaTime * angularVelocity.Magnitude)
+	tAngleStep = Quaternion(targetAngVel.Normalized, fixedDeltaTime * targetAngVel.Magnitude)
+	// What our rotation will be next frame
+	nextRot = angleStep * rotation
+	targNextRot = tAngleStep * targetPosRot.rotation
+	
+	// Get the rotation that we're planning to correct
+	// delRot is the angle from where the object is, to where
+	// we want it to be
+	delRot = 0
+	if dot(targNextRot, nextRot) >= 0 then
+		delRot = targNextRot * nextRot.inv()
+	else
+		//print("flipped")
+		flippedNextRot = -nextRot
+		delRot = targNextRot * flippedNextRot.inv()
+	end if
+	
+	angleAxis = delRot.ToAngleAxis()
+	delRad = radians(angleAxis.angle)
+	
+	// Get the torque needed to correct the rotation
+	accel = delRad / dtSqr
+	angAccel = angleAxis.axis * accel
+	posTorque = rotation * ((rotation.inv() * angAccel).ComponentMul(inertia))
+	
+	// Get the torque needed to correct the angular velocity
+	delAngVel = targetAngVel - angularVelocity
+	velAngAccel = delAngVel / fixedDeltaTime
+	velTorque = rotation * ((rotation.inv() * velAngAccel).ComponentMul(inertia))
+	
+	// Use the delta angle to find the weight for correcting angle/angularVelocity
+	// 0 means just correct angle, >= 1 means correct angular velocity
+	delAngle = rotation.inv() * (angleAxis.angle * angleAxis.axis)
+	wAngle = (abs(delAngle) - SmallAngleVec).ComponentDiv(LSAngleVec)
+	if isColliding or wAngle.Magnitude > 3 then
+		//print("Large offset, using pos")
+		wAngle = Vector3(1,1,1)
+	end if
+	
+	// Apply the weight to get a torque to correct both the angle and the vel
+	// based on how far away the angle is
+	wTorque = lerp(velTorque, posTorque, wAngle)
+	//print("wAng " + wAngle + " delRad " + delRad)
+	
+	// The positional correction will apply some torque, so
+	// we account for that
+	//print("wT " + wTorque + " pos " + posT + " finT " + (wTorque - posT))
+	wTorque = wTorque - posT
+	
+	// We can apply a larger torque if we're appying a force against
+	// the velocity
+	rotAgainstVel = angularVelocity.Magnitude < 0.1 // Rad/s
+	rotAgainstVel = rotAgainstVel or dot(angularVelocity, wTorque) < 0.01
+	clampT = MaxTorque
+	if isColliding then
+		clampT = MaxPushTorque
+	else if rotAgainstVel then
+		clampT = MaxHoldTorque
+	end if
+	
+	// Clamp the torque
+	tMag = wTorque.Magnitude()
+	if tMag > clampT then
+		scale = tMag / clampT
+		wTorque = wTorque / scale
+		//print("Clamped T by " + scale)
+	end if
+	
+	// Apply the torque
+	AddTorque(wTorque)
+	
+	// The torque will move the grab pos, which isn't what we
+	// want. Turning the object should keep the object in
+	// the user's hand. So we apply a correction force to keep
+	// the object in the hand at the same spot.
+	handT = wTorque + posT
+	
+	// Use the torque to get the rotation that will occur
+	// over the next frame
+	tRot = rotation.inv() * handT
+	tRot = tRot.ComponentDiv(inertia)
+	tRot = rotation * tRot
+	tMag = tRot.Magnitude() * dtSqr
+	gRot = Quaternion(tRot.Normalized(), tMag)
+	
+	// Find out how far the grab point will move from
+	// this rotation
+	nextGrabPos = angleStep * (gRot * grabPosFromCOM)
+	//delG = gRot * grabPosFromCOM - grabPosFromCOM
+	delG = nextGrabPos - grabPosFromCOM
+	
+	// Turn the delta position into a correction force
+	grabF = -mass * delG / dtSqr
+	grabFMag = grabF.Magnitude()
+	if false and grabFMag > maxMag then
+		// avoid divide by 0
+		if maxMag < 0.001 then
+			grabFMag = Vector3(0,0,0)
+		else
+			fScale = grabFMag / maxMag
+			grabF = grabF / fScale
+		end if
+	end if
+	rg = grabF
+	grabF = grabF - globals.lastGrabF
+	AddForce(grabF, centerOfMass)
+	globals.lastGrabF = rg
+	globals.lastGrabV = -delG / fixedDeltaTime
+	
+	forward = Vector3(0,0,-1)
+	ourRot = nextRot * forward
+	theirRot = targNextRot * forward
+	
+	bLine.Update(grabPosWorld, ourRot)
+	yLine.Update(targGrabPosW, theirRot)
+	gLine.Update(centerOfMass, grabF)
+	cLine.Update(centerOfMass, wTorque)
+	rLine.Update(grabPosWorld, finF)
+	//cLine.Update(centerOfMass, velocity)
+	//mLine.Update(centerOfMass, targetVel)
+end function
+lastGrabF = Vector3(0,0,0)
+lastGrabV = Vector3(0,0,0)

@@ -1,0 +1,16 @@
+{
+    "name": "PhysSoundEditor",
+    "references": [
+        "GUID:439ec55d89fb07745929266035b732f4"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": []
+}

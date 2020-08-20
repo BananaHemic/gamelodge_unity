@@ -1,0 +1,28 @@
+cam1 = GetObject("Cam_1A")
+cam2 = GetObject("Cam_1B")
+cam1.SetVirtualPriority(10)
+cam2.SetVirtualPriority(9)
+cam1.SetEnabled(true)
+cam2.SetEnabled(true)
+
+cam1.SetVisible(false)
+cam2.SetVisible(false)
+ppl = GetAllPossessedObjects()
+print("objs " + ppl)
+cam1.SetLookAt(ppl)
+cam1.SetFollow(ppl)
+cam1.SetBody("transposer")
+cam1.SetAim("hard")
+cam1.SetFollowOffset(10, 5, 0)
+// When the user hits a keyboard key(s)
+
+OnKeyInput = function(input)
+	if input == "q" then
+		cam2.SetVirtualPriority(11)
+	else if input == "z" then
+		me = GetLocalPossessedObject()
+		if me != null then
+			me.SetEnabled(false)
+		end if
+	end if
+end function

@@ -1,0 +1,21 @@
+entryCount = 0
+clickCount = 0
+
+onPointerEnter = function()
+	globals.entryCount = entryCount + 1
+	print("Pointer entry count: " + entryCount)
+end function
+
+onPointerExit = function()
+	print("Pointer exited.")
+end function
+
+onPointerClick = function()
+	globals.clickCount = clickCount + 1
+	s = "That's " + clickCount + "!  " + clickCount + " click"
+	s = s + "s" * (clickCount != 1) + "!"
+	if clickCount % 5 == 0 then s = s + "  Ha, ha, ha!"
+	print(s)
+end function
+
+print("Ready!")

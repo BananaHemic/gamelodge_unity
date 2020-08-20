@@ -1,0 +1,10 @@
+
+OnOwnerChange = function()
+	if AmIObjectOwner() then
+		SetColor("green")
+		print("Owner changed, we own")
+	else
+		SetColor("red")
+		print("Owner changed, do not own")
+	end if
+end function

@@ -1,0 +1,29 @@
+//Moving Platform
+
+runTime = 5
+speed = 5
+t = 0
+syncInterval = 1
+lastSyncTime = 0
+
+OnRecvTime = function(t)
+	globals.t = t
+end function
+
+OnFixedUpdate = function()
+	del = fixedDeltaTime * globals.speed
+	globals.t = globals.t + fixedDeltaTime
+	if globals.t > 2 * globals.runTime then
+		globals.t = 0
+	else if globals.t > globals.runTime then
+		del = -del
+	end if
+	
+	// TODO use AmIHost()
+	if AmIObjectOwner() and time - globals.lastSyncTime > syncInterval then
+		// Tell everyone else what the time is
+		SyncRun("OnRecvTime", "others", globals.t, false)
+		globals.lastSyncTime = time
+	end if
+	MovePlatform(del,0,0)
+end function

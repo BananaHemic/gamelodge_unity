@@ -1,0 +1,40 @@
+cam1 = GetObject("Cam1")
+cam1.SetEnabled(true)
+cam1.SetVisible(false)
+table = GetObject("prop_sch_furniture_cn2_s_table.prefab")
+
+sel = [table]
+cam1.SetLookAt(sel)
+cam1.SetFollow(sel)
+cam1.SetBody("orbitaltransposer")
+cam1.SetAim("composer")
+cam1.SetFollowOffset(0, 3, 5)
+
+// The main play function
+playOpener = function()
+	wait(1)
+	obj = null
+	for i in range(10,1)
+		wait(1)
+		if obj != null then
+			obj.SetEnabled(false)
+		end if
+		if i == 9 then
+			PlayAudio()
+		end if
+		print("Get " + i)
+		obj = GetObject("" + i)
+		obj.SetEnabled(true)
+	end for
+	wait(1)
+	obj.SetEnabled(false)
+end function
+
+OnGrabTriggerDown = function()
+	SyncRun("playOpener", "others", 		null, true)
+	playOpener()
+	me = GetLocalPossessedObject()
+	if me != null then
+		me.SetEnabled(false)
+	end if
+end function

@@ -1,0 +1,47 @@
+cam1 = GetObject("Cam_2A")
+cam2 = GetObject("Cam_2B")
+cam1.SetVirtualPriority(10)
+cam2.SetVirtualPriority(9)
+cam1.SetEnabled(true)
+cam2.SetEnabled(true)
+
+OnKeyInput = function(input)
+	if input == "z" then
+		print("aim set")
+		cam1.SetBody("transposer")
+		cam1.SetAim("hard")
+		cam1.SetFollowOffset(0, 3, 6)
+	end if
+	if input == "q" then
+		cam2.SetVirtualPriority(11)
+		print("switching")
+	else if input == "z" then
+		me = GetLocalPossessedObject()
+		if me != null then
+			me.SetEnabled(false)
+		end if
+	end if
+end function
+
+cam1.SetVisible(false)
+cam2.SetVisible(false)
+ppl = GetAllPossessedObjects()
+print(len(ppl))
+if len(ppl) > 0 then
+	print("ppl " + ppl)
+	sel = [ppl[0], ppl[2]]
+	//print("a " + ppl)
+	print("objs " + sel)
+	cam1.SetLookAt(sel)
+	cam1.SetFollow(sel)
+	cam1.SetBody("transposer")
+	cam1.SetAim("hard")
+	cam1.SetFollowOffset(0, 3, 6)
+	
+	sel.push(ppl[1])
+	cam2.SetLookAt(sel)
+	cam2.SetFollow(sel)
+	cam2.SetBody("transposer")
+	cam2.SetAim("group")
+	cam2.SetFollowOffset(0, 3, 5)
+end if
